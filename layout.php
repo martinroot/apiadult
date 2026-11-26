@@ -19,6 +19,7 @@ function page_start(string $title, string $desc = '', bool $toc = false): void {
     <nav>
       <a href="/models.php" <?= basename($_SERVER['PHP_SELF'])==='models.php'?'class="act"':'' ?>>Models</a>
       <a href="/pricing.php" <?= basename($_SERVER['PHP_SELF'])==='pricing.php'?'class="act"':'' ?>>Pricing</a>
+      <a href="/playground.php" <?= basename($_SERVER['PHP_SELF'])==='playground.php'?'class="act"':'' ?>>Playground</a>
       <a href="/docs/" <?= strpos($_SERVER['REQUEST_URI'],'/docs')===0?'class="act"':'' ?>>Docs</a>
       <a href="https://t.me/+apiadult" target="_blank" rel="noopener">Telegram</a>
     </nav>

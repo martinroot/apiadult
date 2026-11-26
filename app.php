@@ -212,4 +212,15 @@ function aa_mirror_task(array $owner, string $taskId, array $payload): void {
     }
 }
 
+function aa_session_key(): string {
+    start_session();
+    $u = current_user();
+    if (!$u) redirect('/login.php');
+    if (empty($_SESSION['playground_key'])) {
+        $r = issue_key((int)$u['id'], 'playground');
+        $_SESSION['playground_key'] = $r['key'];
+    }
+    return $_SESSION['playground_key'];
+}
+
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }

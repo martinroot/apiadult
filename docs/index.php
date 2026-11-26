@@ -12,6 +12,8 @@
     <h1>Get started with APIAdult</h1>
     <p>Uncensored models for <b>chat, image, video and voice</b> behind one OpenAI-style endpoint. Keys are server-side secrets — never ship them to a browser or an app.</p>
 
+    <p>Try the <a href="/playground.php">Playground</a> from your dashboard before writing code.</p>
+
     <h2 id="quickstart">Quickstart</h2>
     <p>1. Get a key on the <a href="/keys.php">keys page</a>. 2. Submit your first task:</p>
 <pre>export APIADULT_KEY="aal_live_..."
