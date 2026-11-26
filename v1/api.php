@@ -47,39 +47,6 @@ if (!$UPSTREAM_KEY) {
     api_error('service_unavailable', 503, 'Upstream provider key is not configured on the server', $rid);
 }
 
-function proxy(string $upstream, string $method, string $path, string $upstreamKey, array $extraHeaders = []): array {
-    $url = $upstream . '/v1' . $path;
-    $headers = ['Authorization: Bearer ' . $upstreamKey,
-                'Content-Type: application/json',
-                'Accept: application/json',
-                'User-Agent: apiadult-gateway/1.0'];
-    foreach ($extraHeaders as $h) $headers[] = $h;
-    $body = file_get_contents('php://input');
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_CUSTOMREQUEST => $method,
-        CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_POSTFIELDS => in_array($method, ['POST', 'PUT', 'PATCH'], true) ? ($body ?: '{}') : null,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HEADER => true,
-        CURLOPT_TIMEOUT => 120,
-        CURLOPT_FOLLOWLOCATION => true,
-    ]);
-    $resp = curl_exec($ch);
-    if ($resp === false) {
-        $e = curl_error($ch); curl_close($ch);
-        return [0, '', 'upstream error: ' . $e];
-    }
-    $hlen = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $head = substr($resp, 0, $hlen);
-    $out  = substr($resp, $hlen);
-    curl_close($ch);
-    $reqid = '';
-    if (preg_match('/^x-request-id:\s*(\S+)/mi', $head, $m)) $reqid = trim($m[1]);
-    return [$code, $out, $reqid];
-}
-
 // Allowed proxy paths
 $allowed = $method === 'GET'
     ? ['/balance', '/usage', '/tasks', '/face-assets']
@@ -92,9 +59,21 @@ if (!in_array($path, $allowed, true) && !$isModelPost && !$isTaskGet && !$isTask
     api_error('not_found', 404, "Unknown endpoint $method $path. See /docs/.", $rid);
 }
 
+$body = file_get_contents('php://input');                       // read once
+$contentType = $_SERVER['CONTENT_TYPE'] ?? 'application/json';
+if (!str_starts_with($contentType, 'multipart/')) $contentType = 'application/json';
 $idem = $_SERVER['HTTP_IDEMPOTENCY_KEY'] ?? '';
-if ($idem === '') $idem = 'aa_' . hash('sha256', $owner['id'] . $path . file_get_contents('php://input'));
-[$code, $out, $upstreamRid] = proxy($UPSTREAM, $method, $path, $UPSTREAM_KEY, ['Idempotency-Key: ' . $idem]);
+if ($idem === '') $idem = 'aa_' . hash('sha256', $owner['id'] . $path . $body);
+[$code, $out, $upstreamRid] = aa_proxy($method, $path, $body, $contentType,
+                                       ['Idempotency-Key: ' . $idem]);
+
+// Mirror task status/result on poll
+if ($method === 'GET' && $isTaskGet) {
+    $j = json_decode($out, true);
+    if (is_array($j) && isset($j['id'], $j['status'])) {
+        aa_mirror_task($owner, (string)$j['id'], $j);
+    }
+}
 
 // Mirror created tasks locally
 if ($method === 'POST') {
@@ -106,7 +85,7 @@ if ($method === 'POST') {
         db()->prepare('INSERT IGNORE INTO tasks(user_id,api_key_id,task_id,model,status,request_json,result_json)
                        VALUES(?,?,?,?,?,?,?)')
            ->execute([$owner['id'], $owner['key_id'], $tid, $model, $json['status'] ?? 'queued',
-                      file_get_contents('php://input'), $out]);
+                      $body, $out]);
     }
 }
 

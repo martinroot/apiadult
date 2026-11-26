@@ -140,4 +140,76 @@ function bearer_key(): ?string {
     return null;
 }
 
+function aa_proxy(string $method, string $path, string $body = '', string $contentType = 'application/json',
+                  array $extraHeaders = []): array {
+    $base = rtrim(aa_env('AA_UPSTREAM_BASE', 'https://api.hotapi.ai'), '/');
+    $key  = aa_env('AA_UPSTREAM_KEY');
+    $url  = $base . '/v1' . $path;
+    $headers = [
+        'Authorization: Bearer ' . $key,
+        'Content-Type: ' . $contentType,
+        'Accept: application/json',
+        'User-Agent: apiadult-gateway/1.0',
+    ];
+    foreach ($extraHeaders as $h) $headers[] = $h;
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_POSTFIELDS => in_array($method, ['POST', 'PUT', 'PATCH'], true) ? ($body ?: '{}') : null,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER => true,
+        CURLOPT_TIMEOUT => 120,
+        CURLOPT_FOLLOWLOCATION => true,
+    ]);
+    $resp = curl_exec($ch);
+    if ($resp === false) {
+        $e = curl_error($ch); curl_close($ch);
+        return [0, '', 'upstream error: ' . $e];
+    }
+    $hlen = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $head = substr($resp, 0, $hlen);
+    $out  = substr($resp, $hlen);
+    curl_close($ch);
+    $reqid = '';
+    if (preg_match('/^x-request-id:\s*(\S+)/mi', $head, $m)) $reqid = trim($m[1]);
+    return [$code, $out, $reqid];
+}
+
+function aa_charge(int $userId, int $credits, string $reason, string $ref): void {
+    if ($credits === 0) return;
+    $dup = db()->prepare('SELECT COUNT(*) FROM credit_ledger WHERE user_id=? AND ref=? AND reason=?');
+    $dup->execute([$userId, $ref, $reason]);
+    if ((int)$dup->fetchColumn() > 0) return;              // idempotent
+    db()->beginTransaction();
+    try {
+        db()->prepare('INSERT INTO credit_ledger(user_id,delta_cents,reason,ref) VALUES(?,?,?,?)')
+           ->execute([$userId, $credits, $reason, $ref]);
+        db()->prepare('UPDATE users SET credits=credits+? WHERE id=?')->execute([$credits, $userId]);
+        db()->commit();
+    } catch (Throwable $e) {
+        db()->rollBack();
+        throw $e;
+    }
+}
+
+function aa_mirror_task(array $owner, string $taskId, array $payload): void {
+    $status = (string)($payload['status'] ?? 'queued');
+    $result = isset($payload['result']) ? json_encode($payload['result'], JSON_UNESCAPED_SLASHES) : null;
+    db()->prepare('UPDATE tasks SET status=?, result_json=COALESCE(?,result_json) WHERE user_id=? AND task_id=?')
+       ->execute([$status, $result, $owner['id'], $taskId]);
+    $micros = (int)($payload['cost_micros'] ?? ($payload['usage']['cost_micros'] ?? 0));
+    if ($micros > 0) {
+        $cents = (int)round($micros / 10000);              // 1,000,000 micros = $1 = 100 credits
+        aa_charge((int)$owner['id'], -$cents, 'task', $taskId);
+    }
+    if (in_array($status, ['failed', 'cancelled'], true)) {
+        $row = db()->prepare('SELECT cost_cents FROM tasks WHERE user_id=? AND task_id=?');
+        $row->execute([$owner['id'], $taskId]);
+        $spent = (int)($row->fetchColumn() ?: 0);
+        if ($spent > 0) aa_charge((int)$owner['id'], $spent, 'refund', $taskId);
+    }
+}
+
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
