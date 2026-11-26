@@ -1,16 +1,14 @@
-<?php require __DIR__.'/layout.php'; page_start('Get your API key', 'Create a key, top up credits, start generating.'); ?>
+<?php
+require __DIR__ . '/layout.php';
+page_start('Get your API key', 'Sign up and create a key in your dashboard.');
+?>
 <section class="wrap" style="max-width:560px">
   <h1 class="h2">Get your API key</h1>
-  <p class="mut">Self-service signup launches with the gateway. For now keys are issued manually — message us and you'll have one within minutes.</p>
+  <p class="mut">Create an account, sign in, then generate a key in your dashboard — no waiting, no manual requests.</p>
   <div class="card" style="margin:20px 0">
-    <h3>Telegram</h3>
-    <p>Fastest way: write to our channel and request a key.</p>
-    <p><a class="btn primary" href="https://t.me/+apiadult" target="_blank" rel="noopener">Open Telegram</a></p>
+    <p><a class="btn primary" href="/register.php">Create account</a> <a class="btn" href="/login.php">Sign in</a></p>
+    <p class="mut">Already signed in? Open your <a href="/account.php">dashboard</a> to create and manage keys.</p>
   </div>
-  <div class="card" style="margin:20px 0">
-    <h3>Email</h3>
-    <p>support@apiadult.online — укажите ожидаемый объём (задач/день) и категории моделей.</p>
-  </div>
-  <p class="mut">1000 credits = $1 · top-up from $10 · failed tasks refunded in full.</p>
+  <p class="mut">1000 credits = $1 · pay as you go · failed tasks refunded in full.</p>
 </section>
 <?php page_end();

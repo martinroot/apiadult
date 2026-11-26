@@ -22,7 +22,11 @@ function page_start(string $title, string $desc = '', bool $toc = false): void {
       <a href="/docs/" <?= strpos($_SERVER['REQUEST_URI'],'/docs')===0?'class="act"':'' ?>>Docs</a>
       <a href="https://t.me/+apiadult" target="_blank" rel="noopener">Telegram</a>
     </nav>
-    <a class="cta" href="/keys.php">Get API key</a>
+    <?php if (function_exists('current_user') && current_user()): ?>
+      <a class="cta" href="/account.php">Dashboard</a>
+    <?php else: ?>
+      <a class="cta" href="/login.php">Sign in</a>
+    <?php endif; ?>
   </div>
 </header>
 <main>

@@ -1,0 +1,63 @@
+-- apiadult.online — schema for accounts, API keys, task mirroring
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  display_name VARCHAR(120) DEFAULT NULL,
+  is_admin TINYINT(1) NOT NULL DEFAULT 0,
+  status ENUM('active','disabled') NOT NULL DEFAULT 'active',
+  credits INT NOT NULL DEFAULT 0 COMMENT 'credits in cents: 100 = $1',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_login_at DATETIME DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id CHAR(64) NOT NULL PRIMARY KEY COMMENT 'sha256(token)',
+  user_id BIGINT UNSIGNED NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY (user_id), KEY (expires_at),
+  CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS api_keys (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(80) NOT NULL DEFAULT 'default',
+  prefix VARCHAR(24) NOT NULL COMMENT 'first chars, e.g. aal_1a2b3c',
+  key_hash CHAR(64) NOT NULL UNIQUE COMMENT 'sha256(full key)',
+  upstream_key_hash CHAR(64) DEFAULT NULL COMMENT 'optional per-key upstream key',
+  last_used_at DATETIME DEFAULT NULL,
+  revoked_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY (user_id), KEY (prefix),
+  CONSTRAINT fk_keys_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  api_key_id BIGINT UNSIGNED DEFAULT NULL,
+  task_id VARCHAR(128) NOT NULL,
+  model VARCHAR(128) NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'queued',
+  request_json MEDIUMTEXT DEFAULT NULL,
+  result_json MEDIUMTEXT DEFAULT NULL,
+  cost_cents INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_task_user (user_id, task_id),
+  KEY (status), KEY (model),
+  CONSTRAINT fk_tasks_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS credit_ledger (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  delta_cents INT NOT NULL,
+  reason VARCHAR(80) NOT NULL,
+  ref VARCHAR(128) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY (user_id),
+  CONSTRAINT fk_ledger_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

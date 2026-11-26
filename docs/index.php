@@ -14,7 +14,7 @@
 
     <h2 id="quickstart">Quickstart</h2>
     <p>1. Get a key on the <a href="/keys.php">keys page</a>. 2. Submit your first task:</p>
-<pre>export APIADULT_KEY="sk-live-..."
+<pre>export APIADULT_KEY="aal_live_..."
 
 curl https://apiadult.online/v1/images \
   -H "Authorization: Bearer $APIADULT_KEY" \
@@ -44,11 +44,11 @@ curl https://apiadult.online/v1/tasks/tsk_01J... \
     <table class="tbl">
       <tr><th>Endpoint</th><th>Purpose</th></tr>
       <tr><td><code class="inline">GET /v1/models</code></td><td>List available models and live pricing</td></tr>
-      <tr><td><code class="inline">POST /v1/images</code></td><td>Text-to-image / image editing</td></tr>
-      <tr><td><code class="inline">POST /v1/videos</code></td><td>Text / image / reference-to-video</td></tr>
+      <tr><td><code class="inline">POST /v1/&lt;model&gt;</code></td><td>Submit a generation task (model-specific endpoint)</td></tr>
+      <tr><td><code class="inline">POST /v1/tasks</code></td><td>Submit a task with an explicit model + input</td></tr>
       <tr><td><code class="inline">POST /v1/uploads</code></td><td>Multipart image upload → public URL usable as task input</td></tr>
-      <tr><td><code class="inline">POST /v1/chat/completions</code></td><td>Chat (roleplay models)</td></tr>
       <tr><td><code class="inline">GET /v1/tasks/&lt;id&gt;</code></td><td>Poll task status and result</td></tr>
+      <tr><td><code class="inline">DELETE /v1/tasks/&lt;id&gt;</code></td><td>Cancel a task</td></tr>
       <tr><td><code class="inline">GET /v1/balance</code></td><td>Credits remaining</td></tr>
     </table>
     <p>All endpoints require <code class="inline">Authorization: Bearer &lt;key&gt;</code>. Send <code class="inline">Idempotency-Key</code> on task creation to make retries safe.</p>
@@ -64,7 +64,7 @@ curl https://apiadult.online/v1/tasks/tsk_01J... \
     <p>Retry safely: 429 and 5xx with exponential backoff and jitter; keep request bodies identical and reuse the same <code class="inline">Idempotency-Key</code>. 4xx do not warrant a retry.</p>
 
     <h2 id="billing">Credits &amp; billing</h2>
-    <p>1,000 credits = $1. Credit cost of each model is published on <a href="/pricing.php">pricing</a>. Balance, spend history and top-ups are on the keys page. Failed tasks are refunded automatically once — no duplicate refunds for retried tasks with the same idempotency key.</p>
+    <p>1,000 credits = $1. Credit cost of each model is published on <a href="/pricing.php">pricing</a>. Balance and spend history are in your <a href="/account.php">dashboard</a>. Failed tasks are refunded automatically once — no duplicate refunds for retried tasks with the same idempotency key.</p>
 
     <h2>Content policy</h2>
     <p>Adults only (18+). Illegal content, minors, real people's non-consensual imagery are prohibited and permanently banned. See <a href="/legal/terms.php">Terms</a>.</p>
